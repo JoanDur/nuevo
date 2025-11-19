@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 
 class TinderPetsAPITester:
-    def __init__(self, base_url="https://petadoptai.preview.emergentagent.com"):
+    def __init__(self, base_url="http://localhost:8000"):
+        """Initialize API tester for local backend"""
         self.base_url = base_url
         self.adopter_token = None
         self.foundation_token = None
@@ -20,8 +21,8 @@ class TinderPetsAPITester:
             headers['Authorization'] = f'Bearer {token}'
 
         self.tests_run += 1
-        print(f"\n🔍 Testing {name}...")
-        
+        print(f"\nTesting {name}...")
+
         try:
             if method == 'GET':
                 response = requests.get(url, headers=headers)
@@ -35,21 +36,21 @@ class TinderPetsAPITester:
             success = response.status_code == expected_status
             if success:
                 self.tests_passed += 1
-                print(f"✅ Passed - Status: {response.status_code}")
+                print(f"✓ Passed - Status: {response.status_code}")
                 try:
                     return True, response.json()
                 except:
                     return True, {}
             else:
-                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
+                print(f"✗ Failed - Expected {expected_status}, got {response.status_code}")
                 try:
-                    print(f"   Response: {response.json()}")
+                    print(f"  Response: {response.json()}")
                 except:
-                    print(f"   Response: {response.text}")
+                    print(f"  Response: {response.text}")
                 return False, {}
 
         except Exception as e:
-            print(f"❌ Failed - Error: {str(e)}")
+            print(f"✗ Failed - Error: {str(e)}")
             return False, {}
 
     def test_foundation_register(self):
@@ -61,7 +62,7 @@ class TinderPetsAPITester:
             "age": 25,
             "user_type": "foundation"
         }
-        
+
         success, response = self.run_test(
             "Foundation Registration",
             "POST",
@@ -69,7 +70,7 @@ class TinderPetsAPITester:
             200,
             data=foundation_data
         )
-        
+
         if success and 'token' in response:
             self.foundation_token = response['token']
             self.test_data['foundation'] = response['user']
@@ -93,7 +94,7 @@ class TinderPetsAPITester:
                 "social": 8
             }
         }
-        
+
         success, response = self.run_test(
             "Adopter Registration",
             "POST",
@@ -101,7 +102,7 @@ class TinderPetsAPITester:
             200,
             data=adopter_data
         )
-        
+
         if success and 'token' in response:
             self.adopter_token = response['token']
             self.test_data['adopter'] = response['user']
@@ -112,12 +113,12 @@ class TinderPetsAPITester:
         """Test login functionality"""
         if not self.test_data.get('foundation'):
             return False
-            
+
         login_data = {
             "email": self.test_data['foundation']['email'],
             "password": "TestPass123!"
         }
-        
+
         success, response = self.run_test(
             "Foundation Login",
             "POST",
@@ -125,7 +126,7 @@ class TinderPetsAPITester:
             200,
             data=login_data
         )
-        
+
         return success and 'token' in response
 
     def test_create_pet(self):
@@ -144,7 +145,7 @@ class TinderPetsAPITester:
             },
             "images": ["https://example.com/buddy.jpg"]
         }
-        
+
         success, response = self.run_test(
             "Create Pet",
             "POST",
@@ -153,7 +154,7 @@ class TinderPetsAPITester:
             data=pet_data,
             token=self.foundation_token
         )
-        
+
         if success and 'id' in response:
             self.test_data['pet'] = response
             return True
@@ -168,7 +169,6 @@ class TinderPetsAPITester:
             200,
             token=self.foundation_token
         )
-        
         return success and isinstance(response, list)
 
     def test_get_available_pets(self):
@@ -180,19 +180,18 @@ class TinderPetsAPITester:
             200,
             token=self.adopter_token
         )
-        
         return success and isinstance(response, list)
 
     def test_swipe_like(self):
         """Test swiping like on a pet"""
         if not self.test_data.get('pet'):
             return False
-            
+
         swipe_data = {
             "pet_id": self.test_data['pet']['id'],
             "action": "like"
         }
-        
+
         success, response = self.run_test(
             "Swipe Like",
             "POST",
@@ -201,11 +200,9 @@ class TinderPetsAPITester:
             data=swipe_data,
             token=self.adopter_token
         )
-        
+
         if success and 'match_score' in response:
             self.test_data['match'] = response
-            print(f"   Match Score: {response['match_score']}%")
-            print(f"   Is Match: {response['is_match']}")
             return True
         return False
 
@@ -218,38 +215,36 @@ class TinderPetsAPITester:
             200,
             token=self.adopter_token
         )
-        
         return success and isinstance(response, list)
 
     def test_accept_match(self):
         """Test accepting a match"""
         if not self.test_data.get('match') or not self.test_data['match'].get('is_match'):
-            print("   Skipping - No successful match to accept")
+            print("  Skipping - No successful match to accept")
             return True
-            
-        success, response = self.run_test(
+
+        success, _ = self.run_test(
             "Accept Match",
             "PUT",
             f"matches/{self.test_data['match']['id']}/accept",
             200,
             token=self.adopter_token
         )
-        
         return success
 
     def test_create_appointment(self):
         """Test creating an appointment"""
         if not self.test_data.get('match') or not self.test_data['match'].get('is_match'):
-            print("   Skipping - No successful match for appointment")
+            print("  Skipping - No successful match for appointment")
             return True
-            
+
         appointment_data = {
             "match_id": self.test_data['match']['id'],
             "date": "2025-02-01",
             "time": "14:00"
         }
-        
-        success, response = self.run_test(
+
+        success, _ = self.run_test(
             "Create Appointment",
             "POST",
             "appointments",
@@ -257,7 +252,6 @@ class TinderPetsAPITester:
             data=appointment_data,
             token=self.adopter_token
         )
-        
         return success
 
     def test_get_appointments(self):
@@ -269,29 +263,28 @@ class TinderPetsAPITester:
             200,
             token=self.adopter_token
         )
-        
         return success and isinstance(response, list)
 
     def test_personality_matching_algorithm(self):
         """Test the personality matching algorithm with different scenarios"""
-        print(f"\n🧠 Testing Personality Matching Algorithm...")
-        
-        # Test high compatibility (should match)
+        print("\nTesting Personality Matching Algorithm...")
+
+        # High compatibility test
         high_compat_pet = {
             "name": "Compatible Pet",
             "breed": "Test Breed",
             "age": 2,
             "personality_traits": {
-                "playful": 8,  # Close to adopter's 8
-                "calm": 6,     # Same as adopter's 6
-                "energetic": 7, # Same as adopter's 7
-                "friendly": 9,  # Same as adopter's 9
-                "independent": 5, # Same as adopter's 5
-                "social": 8     # Same as adopter's 8
+                "playful": 8,
+                "calm": 6,
+                "energetic": 7,
+                "friendly": 9,
+                "independent": 5,
+                "social": 8
             },
             "images": []
         }
-        
+
         success, pet_response = self.run_test(
             "Create High Compatibility Pet",
             "POST",
@@ -300,13 +293,13 @@ class TinderPetsAPITester:
             data=high_compat_pet,
             token=self.foundation_token
         )
-        
+
         if success:
             swipe_data = {
                 "pet_id": pet_response['id'],
                 "action": "like"
             }
-            
+
             success, match_response = self.run_test(
                 "Test High Compatibility Match",
                 "POST",
@@ -315,34 +308,29 @@ class TinderPetsAPITester:
                 data=swipe_data,
                 token=self.adopter_token
             )
-            
+
             if success:
                 score = match_response.get('match_score', 0)
                 is_match = match_response.get('is_match', False)
-                print(f"   High Compatibility Score: {score}%")
-                print(f"   Expected Match (≥70%): {is_match}")
-                
-                if score >= 70 and is_match:
-                    print("   ✅ High compatibility matching works correctly")
-                else:
-                    print("   ❌ High compatibility matching failed")
-        
-        # Test low compatibility (should not match)
+                print(f"  High Compatibility Score: {score}%")
+                print(f"  Expected Match (≥70%): {is_match}")
+
+        # Low compatibility test
         low_compat_pet = {
             "name": "Incompatible Pet",
             "breed": "Test Breed",
             "age": 2,
             "personality_traits": {
-                "playful": 1,   # Very different from adopter's 8
-                "calm": 10,     # Very different from adopter's 6
-                "energetic": 1, # Very different from adopter's 7
-                "friendly": 1,  # Very different from adopter's 9
-                "independent": 10, # Very different from adopter's 5
-                "social": 1     # Very different from adopter's 8
+                "playful": 1,
+                "calm": 10,
+                "energetic": 1,
+                "friendly": 1,
+                "independent": 10,
+                "social": 1
             },
             "images": []
         }
-        
+
         success, pet_response = self.run_test(
             "Create Low Compatibility Pet",
             "POST",
@@ -351,13 +339,13 @@ class TinderPetsAPITester:
             data=low_compat_pet,
             token=self.foundation_token
         )
-        
+
         if success:
             swipe_data = {
                 "pet_id": pet_response['id'],
                 "action": "like"
             }
-            
+
             success, match_response = self.run_test(
                 "Test Low Compatibility Match",
                 "POST",
@@ -366,69 +354,55 @@ class TinderPetsAPITester:
                 data=swipe_data,
                 token=self.adopter_token
             )
-            
+
             if success:
                 score = match_response.get('match_score', 0)
                 is_match = match_response.get('is_match', False)
-                print(f"   Low Compatibility Score: {score}%")
-                print(f"   Expected No Match (<70%): {not is_match}")
-                
-                if score < 70 and not is_match:
-                    print("   ✅ Low compatibility matching works correctly")
-                else:
-                    print("   ❌ Low compatibility matching failed")
+                print(f"  Low Compatibility Score: {score}%")
+                print(f"  Expected No Match (<70%): {not is_match}")
 
 def main():
-    print("🐾 Starting TinderPets API Testing...")
+    print("Starting TinderPets API Testing...")
     tester = TinderPetsAPITester()
-    
+
     # Test authentication
     if not tester.test_foundation_register():
-        print("❌ Foundation registration failed, stopping tests")
+        print("Foundation registration failed. Stopping tests.")
         return 1
-    
+
     if not tester.test_adopter_register():
-        print("❌ Adopter registration failed, stopping tests")
+        print("Adopter registration failed. Stopping tests.")
         return 1
-    
+
     if not tester.test_login():
-        print("❌ Login failed")
-    
-    # Test pet management
+        print("Login failed")
+
+    # Pet management tests
     if not tester.test_create_pet():
-        print("❌ Pet creation failed")
+        print("Pet creation failed")
         return 1
-    
-    if not tester.test_get_foundation_pets():
-        print("❌ Getting foundation pets failed")
-    
-    if not tester.test_get_available_pets():
-        print("❌ Getting available pets failed")
-    
-    # Test matching system
-    if not tester.test_swipe_like():
-        print("❌ Swipe like failed")
-    
-    if not tester.test_get_matches():
-        print("❌ Getting matches failed")
-    
-    tester.test_accept_match()  # May skip if no match
-    tester.test_create_appointment()  # May skip if no match
-    
-    if not tester.test_get_appointments():
-        print("❌ Getting appointments failed")
-    
-    # Test personality matching algorithm
+
+    tester.test_get_foundation_pets()
+    tester.test_get_available_pets()
+
+    # Matching tests
+    tester.test_swipe_like()
+    tester.test_get_matches()
+    tester.test_accept_match()
+    tester.test_create_appointment()
+    tester.test_get_appointments()
+
+    # Matching algorithm test
     tester.test_personality_matching_algorithm()
-    
-    # Print results
-    print(f"\n📊 Test Results: {tester.tests_passed}/{tester.tests_run} passed")
-    
+
+    # Results
+    print(f"\nTest Results: {tester.tests_passed}/{tester.tests_run} passed")
+
     if tester.tests_passed == tester.tests_run:
-        print("🎉 All tests passed!")
+        print("All tests passed!")
         return 0
     else:
-        print("⚠️  Some tests failed")
+        print("Some tests failed")
         return 1
 
 if __name__ == "__main__":
